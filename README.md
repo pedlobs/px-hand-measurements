@@ -10,27 +10,27 @@ In the data folder we can find examples of data reports.
 
 In order to execute the script: 
 
-python merge_data.py
+    python merge_data.py
 
 or
 
-python3 merge_data.py
+    python3 merge_data.py
 
 Dependencies  to be installed with the following command:
 
-pip install pandas openpyxl
+    pip install pandas openpyxl
 
 The wotking folder must have the following structure:
 
 working_folder
 
+ |
+  
+ ¬ merge_data.py
+  
+ ¬ data
+  
   |
-  
-  ¬ merge_data.py
-  
-  ¬ data
-  
-    |
     
-    ¬(all excel files)
+  ¬(all excel files)
   
