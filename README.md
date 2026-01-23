@@ -3,7 +3,7 @@
 ## Thread.exe
 Exectable that starts the application to visuallise the readings and create the csv reports
 
-##csv_merge
+## csv_merge
 Contains the python script for merging the excel reports.
 In the data folder we can find examples of data reports.
 In order to execute the script: 
