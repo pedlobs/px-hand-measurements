@@ -1,5 +1,5 @@
-## Explanation of the different files
+# Explanation of the different files
 
-# Thread.exe
+## Thread.exe
 Exectable that starts the application to visuallise the readings and create the csv reports
 
