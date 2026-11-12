@@ -35,6 +35,7 @@ host_app / SerialWorker - - -> telemetry queue - - -> Tkinter UI [incomplete]
                                                consolidated .csv
 
 hardware/kicad_project: schematic and PCB for the electronics
+hardware/freecad: mechanical prototype macro
 API-Testing--main: NestJS starter configuration, not an implemented API
 ```
 
@@ -55,6 +56,7 @@ The host application's serial, UI, logging, and consolidation pieces are not cur
 | `host_app/src/services/data_merger.py` | Excel-to-CSV consolidation service |
 | `host_app/requirements.txt` | Python dependency file; currently empty |
 | `hardware/kicad_project/` | KiCad schematic, PCB layout, and project |
+| `hardware/freecad/px_hand_fixture.FCMacro` | FreeCAD macro for a provisional mechanical fixture model |
 | `hardware/kicad_project/pcb projet-backups/` | KiCad board backups |
 | `API-Testing--main/API-Testing--main/` | NestJS project configuration; no application source is currently present |
 
@@ -126,6 +128,22 @@ The KiCad project files are in `hardware/kicad_project/`:
 - `pcb projet.kicad_pcb` - PCB layout
 
 Open the `.kicad_pro` file in KiCad to inspect the schematic and board together. Check the component pin assignments, power, connectors, and consistency with the firmware before manufacturing or changing the hardware.
+
+## FreeCAD mechanical prototype
+
+`hardware/freecad/px_hand_fixture.FCMacro` generates a concept model in FreeCAD. Opening the `.FCMacro` with **File > Open** shows its code in the macro editor; it does not run it. With the macro open in the editor, use the **Execute macro** button (play icon) to run it. The macro creates a new document; use **Save As** to save the resulting model as `.FCStd`. Alternatively, install the macro in FreeCAD's configured macro directory and run it from **Macro > Macros**.
+
+The current provisional model includes:
+
+- A base approximately `101.25 x 122.53 x 8 mm`, with a 12 x 8 staggered triangular pattern of through-holes.
+- Hole diameter `2.5 mm`, clear gap between hole edges `8 mm`, and `10 mm` margin from the outer holes to the base edge.
+- One side wall approximately `90 x 20 x 4 mm`, aligned with an interior row of the base so all four modeled fingers are supported.
+- Three separate sensor-carriage groups that can be repositioned along the finger-length axis. Each has an `8 x 8 x 4 mm` sensor placeholder (reduced 20% from the previous placeholder), illustrative rollers, and a lock-knob placeholder.
+- Four isolated finger references (no palm or thumb), with the index finger against the sensors and the middle finger on the opposite side of the wall. Each finger has cylindrical phalanges and smaller colored markers at its DIP, PIP, and MCP joints.
+
+The 90 mm wall and rails provide travel for the longest modeled finger (82 mm); the three carriages start at 20%, 50%, and 80% of the rail, near the three phalange regions. Sensor dimensions are still placeholders because the physical sensor has not been selected. Joint locations and finger lengths are schematic proportions for visualization. The orange spheres mark the distal interphalangeal (DIP), proximal interphalangeal (PIP), and metacarpophalangeal (MCP) joints; they do not represent fingernails. The model is not a fit or anatomical validation.
+
+The macro's dimensions are constants near the top of the file. The generated solids are a visual prototype, not a fully constrained mechanism: carriage travel, roller clearances, locking force, wall attachment, and print tolerances still require design review and physical testing. Edit the macro parameters and rerun it to generate a revised document.
 
 ## NestJS starter project
 

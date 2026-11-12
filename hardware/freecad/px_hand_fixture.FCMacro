@@ -1,0 +1,391 @@
+import math
+
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+from FreeCAD import Vector
+
+
+# Prototype dimensions in millimeters. Edit these values and rerun the macro
+# to regenerate the model.
+HOLE_DIAMETER = 2.5
+HOLE_EDGE_GAP = 8.0
+EDGE_MARGIN = 10.0
+GRID_ROWS = 12
+GRID_COLUMNS = 8
+BASE_THICKNESS = 8.0
+
+FINGER_LENGTH = 90.0
+WALL_ROW = 6
+WALL_HEIGHT = 20.0
+WALL_THICKNESS = 4.0
+WALL_PEG_DIAMETER = 2.2
+
+SENSOR_LENGTH = 8.0
+SENSOR_HEIGHT = 8.0
+SENSOR_DEPTH = 4.0
+
+CARRIAGE_LENGTH = 14.0
+CARRIAGE_HEIGHT = 6.0
+CARRIAGE_DEPTH = 5.0
+ROLLER_DIAMETER = 4.0
+ROLLER_WIDTH = 2.0
+LOCK_KNOB_DIAMETER = 3.0
+LOCK_KNOB_HEIGHT = 2.0
+
+HAND_INDEX_LENGTH = 75.0
+HAND_MIDDLE_LENGTH = 82.0
+HAND_RING_LENGTH = 76.0
+HAND_LITTLE_LENGTH = 65.0
+HAND_FINGER_RADIUS = 7.5
+HAND_JOINT_RADIUS = 4.5
+HAND_DIP_FROM_TIP = 0.30
+HAND_PIP_FROM_TIP = 0.62
+
+
+hole_radius = HOLE_DIAMETER / 2.0
+hole_pitch = HOLE_DIAMETER + HOLE_EDGE_GAP
+row_pitch = hole_pitch * math.sqrt(3.0) / 2.0
+first_center = EDGE_MARGIN + hole_radius
+
+# Alternate rows are shifted by half a horizontal pitch.
+base_length = (
+    2.0 * EDGE_MARGIN
+    + HOLE_DIAMETER
+    + (GRID_COLUMNS - 1) * hole_pitch
+    + hole_pitch / 2.0
+)
+base_width = (
+    2.0 * EDGE_MARGIN
+    + HOLE_DIAMETER
+    + (GRID_ROWS - 1) * row_pitch
+)
+
+document_stem = "PXHandFingerFixture"
+document_name = document_stem
+suffix = 2
+while document_name in App.listDocuments():
+    document_name = "{}{}".format(document_stem, suffix)
+    suffix += 1
+
+doc = App.newDocument(document_name)
+assembly = doc.addObject("App::Part", "HandMeasurementFixture")
+assembly.Label = "PX-HAND Finger Fixture Prototype"
+
+
+def add_group(name, label, parent):
+    group = doc.addObject("App::Part", name)
+    group.Label = label
+    parent.addObject(group)
+    return group
+
+
+def add_feature(parent, name, label, shape, color, transparency=0):
+    feature = doc.addObject("Part::Feature", name)
+    feature.Label = label
+    feature.Shape = shape
+    feature.ViewObject.ShapeColor = color
+    feature.ViewObject.LineColor = (0.12, 0.12, 0.12)
+    feature.ViewObject.Transparency = transparency
+    parent.addObject(feature)
+    return feature
+
+
+# Perforated base with an equilateral triangular (staggered) hole layout.
+base_shape = Part.makeBox(
+    base_length,
+    base_width,
+    BASE_THICKNESS,
+    Vector(0, 0, 0),
+)
+
+hole_centers = []
+for row in range(GRID_ROWS):
+    y = first_center + row * row_pitch
+    x_offset = (hole_pitch / 2.0) if row % 2 else 0.0
+    for column in range(GRID_COLUMNS):
+        x = first_center + x_offset + column * hole_pitch
+        hole_centers.append((x, y))
+        cutter = Part.makeCylinder(
+            hole_radius,
+            BASE_THICKNESS + 2.0,
+            Vector(x, y, -1.0),
+        )
+        base_shape = base_shape.cut(cutter)
+
+base_shape = base_shape.removeSplitter()
+base_group = add_group("BaseAssembly", "Base", assembly)
+base_feature = add_feature(
+    base_group,
+    "PerforatedBase",
+    "Base 8x8 - triangular hole grid",
+    base_shape,
+    (0.72, 0.75, 0.80),
+)
+
+# The wall is aligned to an interior row so there is room for all four modeled
+# fingers on the base. Its locating pegs fit holes in that same staggered row.
+wall_x = (base_length - FINGER_LENGTH) / 2.0
+wall_center_y = first_center + WALL_ROW * row_pitch
+wall_row_x_offset = (hole_pitch / 2.0) if WALL_ROW % 2 else 0.0
+wall_y = wall_center_y - WALL_THICKNESS / 2.0
+wall_z = BASE_THICKNESS
+wall_front_y = wall_y + WALL_THICKNESS
+
+wall_shape = Part.makeBox(
+    FINGER_LENGTH,
+    WALL_THICKNESS,
+    WALL_HEIGHT,
+    Vector(wall_x, wall_y, wall_z),
+)
+
+peg_columns = (1, 6)
+for column in peg_columns:
+    peg_x = first_center + wall_row_x_offset + column * hole_pitch
+    peg = Part.makeCylinder(
+        WALL_PEG_DIAMETER / 2.0,
+        BASE_THICKNESS + 0.2,
+        Vector(peg_x, wall_center_y, 0),
+    )
+    wall_shape = wall_shape.fuse(peg)
+
+wall_group = add_group("FingerWallAssembly", "Single side wall", assembly)
+add_feature(
+    wall_group,
+    "FingerWall",
+    "Wall 90 x 20 x 4 mm (provisional)",
+    wall_shape.removeSplitter(),
+    (0.83, 0.70, 0.35),
+)
+
+# Two horizontal guide rails support each movable sensor carriage. The default
+# 20/50/80% positions roughly span the three phalanges of the longest finger.
+rail_depth = 2.0
+rail_height = 2.0
+lower_rail_z = wall_z + 3.0
+upper_rail_z = wall_z + WALL_HEIGHT - 5.0
+rails = [
+    Part.makeBox(
+        FINGER_LENGTH,
+        rail_depth,
+        rail_height,
+        Vector(wall_x, wall_front_y, lower_rail_z),
+    ),
+    Part.makeBox(
+        FINGER_LENGTH,
+        rail_depth,
+        rail_height,
+        Vector(wall_x, wall_front_y, upper_rail_z),
+    ),
+]
+add_feature(
+    wall_group,
+    "HorizontalRails",
+    "Horizontal guide rails",
+    Part.makeCompound(rails),
+    (0.35, 0.37, 0.40),
+)
+
+# Each carriage is a separate group so it can be repositioned with FreeCAD's
+# Transform tool. Roller geometry is illustrative; the real bearing fit and
+# manual lock need to be designed and tested.
+carriage_centers = (
+    wall_x + FINGER_LENGTH * 0.2,
+    wall_x + FINGER_LENGTH * 0.5,
+    wall_x + FINGER_LENGTH * 0.8,
+)
+
+roller_radius = ROLLER_DIAMETER / 2.0
+carriage_front_y = wall_front_y + rail_depth
+sensor_y = carriage_front_y + CARRIAGE_DEPTH
+carriage_z = wall_z + (WALL_HEIGHT - CARRIAGE_HEIGHT) / 2.0
+sensor_z = wall_z + (WALL_HEIGHT - SENSOR_HEIGHT) / 2.0
+
+for index, center_x in enumerate(carriage_centers, start=1):
+    carriage_group = add_group(
+        "SensorCarriage{}".format(index),
+        "Sensor carriage {}".format(index),
+        assembly,
+    )
+
+    carriage_shape = Part.makeBox(
+        CARRIAGE_LENGTH,
+        CARRIAGE_DEPTH,
+        CARRIAGE_HEIGHT,
+        Vector(
+            center_x - CARRIAGE_LENGTH / 2.0,
+            carriage_front_y,
+            carriage_z,
+        ),
+    )
+    add_feature(
+        carriage_group,
+        "CarriageBlock{}".format(index),
+        "Sliding carriage {}".format(index),
+        carriage_shape,
+        (0.28, 0.52, 0.78),
+    )
+
+    sensor_shape = Part.makeBox(
+        SENSOR_LENGTH,
+        SENSOR_DEPTH,
+        SENSOR_HEIGHT,
+        Vector(
+            center_x - SENSOR_LENGTH / 2.0,
+            sensor_y,
+            sensor_z,
+        ),
+    )
+    add_feature(
+        carriage_group,
+        "SensorBlock{}".format(index),
+        "Sensor placeholder {} ({} x {} x {} mm)".format(
+            index,
+            SENSOR_LENGTH,
+            SENSOR_HEIGHT,
+            SENSOR_DEPTH,
+        ),
+        sensor_shape,
+        (0.80, 0.23, 0.20),
+    )
+
+    rollers = []
+    roller_x_positions = (
+        center_x - CARRIAGE_LENGTH / 2.0 + roller_radius,
+        center_x + CARRIAGE_LENGTH / 2.0 - roller_radius,
+    )
+    roller_z_positions = (
+        wall_z + 7.0,
+        wall_z + WALL_HEIGHT - 7.0,
+    )
+    for roller_x in roller_x_positions:
+        for roller_z in roller_z_positions:
+            rollers.append(
+                Part.makeCylinder(
+                    roller_radius,
+                    ROLLER_WIDTH,
+                    Vector(roller_x, wall_front_y, roller_z),
+                    Vector(0, 1, 0),
+                )
+            )
+    add_feature(
+        carriage_group,
+        "CarriageRollers{}".format(index),
+        "Guide rollers {}".format(index),
+        Part.makeCompound(rollers),
+        (0.18, 0.18, 0.20),
+    )
+
+    lock_knob = Part.makeCylinder(
+        LOCK_KNOB_DIAMETER / 2.0,
+        LOCK_KNOB_HEIGHT,
+        Vector(
+            center_x,
+            carriage_front_y + CARRIAGE_DEPTH / 2.0,
+            carriage_z + CARRIAGE_HEIGHT,
+        ),
+    )
+    add_feature(
+        carriage_group,
+        "LockKnob{}".format(index),
+        "Lock knob placeholder {}".format(index),
+        lock_knob,
+        (0.55, 0.55, 0.58),
+    )
+
+# The finger cylinders are split at the DIP, PIP, and MCP joints. The colored
+# spheres are joint markers, not nails; no palm or thumb is included.
+hand_group = add_group(
+    "FingerReference",
+    "Finger phalanges and joint markers",
+    assembly,
+)
+
+def add_finger_reference(object_name, label, center_y, finger_length):
+    finger_group = add_group(
+        "{}Assembly".format(object_name),
+        label,
+        hand_group,
+    )
+    finger_root_x = wall_x + FINGER_LENGTH
+    fingertip_x = finger_root_x - finger_length
+    dip_x = fingertip_x + finger_length * HAND_DIP_FROM_TIP
+    pip_x = fingertip_x + finger_length * HAND_PIP_FROM_TIP
+    joint_radius = HAND_JOINT_RADIUS
+
+    phalanx_ranges = (
+        (fingertip_x, dip_x - joint_radius),
+        (dip_x + joint_radius, pip_x - joint_radius),
+        (pip_x + joint_radius, finger_root_x - joint_radius),
+    )
+    phalanges = [
+        Part.makeCylinder(
+            HAND_FINGER_RADIUS,
+            end_x - start_x,
+            Vector(start_x, center_y, hand_z),
+            Vector(1, 0, 0),
+        )
+        for start_x, end_x in phalanx_ranges
+    ]
+    add_feature(
+        finger_group,
+        "{}Phalanges".format(object_name),
+        "Distal, middle, and proximal phalanges",
+        Part.makeCompound(phalanges),
+        (0.88, 0.68, 0.55),
+    )
+
+    joints = Part.makeCompound(
+        [
+            Part.makeSphere(joint_radius, Vector(joint_x, center_y, hand_z))
+            for joint_x in (dip_x, pip_x, finger_root_x)
+        ]
+    )
+    add_feature(
+        finger_group,
+        "{}JointMarkers".format(object_name),
+        "DIP, PIP, and MCP joint markers",
+        joints,
+        (0.95, 0.55, 0.12),
+    )
+
+
+hand_z = wall_z + WALL_HEIGHT / 2.0
+sensor_surface_y = sensor_y + SENSOR_DEPTH
+index_center_y = sensor_surface_y + HAND_FINGER_RADIUS
+middle_center_y = wall_y - HAND_FINGER_RADIUS
+ring_center_y = middle_center_y - 17.0
+little_center_y = ring_center_y - 17.0
+
+finger_specs = (
+    ("IndexFinger", "Index finger - on sensors", index_center_y, HAND_INDEX_LENGTH),
+    ("MiddleFinger", "Middle finger - other side of wall", middle_center_y, HAND_MIDDLE_LENGTH),
+    ("RingFinger", "Ring finger", ring_center_y, HAND_RING_LENGTH),
+    ("LittleFinger", "Little finger", little_center_y, HAND_LITTLE_LENGTH),
+)
+for object_name, label, center_y, finger_length in finger_specs:
+    add_finger_reference(
+        object_name,
+        label,
+        center_y,
+        finger_length,
+    )
+
+doc.recompute()
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+
+App.Console.PrintMessage(
+    "Created prototype: base {:.2f} x {:.2f} x {:.2f} mm, {} triangular holes.\n".format(
+        base_length,
+        base_width,
+        BASE_THICKNESS,
+        len(hole_centers),
+    )
+)
+App.Console.PrintMessage(
+    "Move each Sensor carriage group with Edit > Transform. Save the document as .FCStd.\n"
+)
+App.Console.PrintMessage(
+    "Added four finger models with DIP, PIP, and MCP joint markers; toggle FingerReference to hide them.\n"
+)
