@@ -17,8 +17,18 @@ class SerialConfig:
 class HardwareConfig:
     num_sensors: int = 4
     num_leds: int = 4
-    adc_max_value: int = 4095  # 12-bit STM32WB55
+    adc_max_value: int = 4095  
     led_threshold_default: int = 2048
+
+
+@dataclass(frozen=True)
+class LoggingConfig:
+    data_dir: str = "data"
+    merged_output_filename: str = "merged_stats.csv"
+    capture_samples: int = 10
+    capture_interval_s: float = 0.02
+    movements: Tuple[str, ...] = ("Lateral Ulnar", "Lateral Radial", "Dorsal", "Volar", "Rotacional", "Push", "Pull")
+    fingers: Tuple[str, ...] = ("Thumb", "Index", "Middle", "Ring", "Pinky").
 
 
 @dataclass(frozen=True)
@@ -33,3 +43,5 @@ class AppConfig:
     ui: UIConfig = field(default_factory=UIConfig)
     serial: SerialConfig = field(default_factory=SerialConfig)
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    ble: BleConfig = field(default_factory=BleConfig)
