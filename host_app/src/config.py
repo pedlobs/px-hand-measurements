@@ -13,6 +13,15 @@ class SerialConfig:
     timeout_s: float = 0.1
 
 
+class BleConfig:
+    device_name: str = "HAND_SENSOR"
+    service_uuid: str = "00000000-cc7a-482a-984a-7f2ed5b3e58f"
+    force_char_uuid: str = "00000000-8e22-4541-9d4c-21edae82ed19"
+    scan_timeout_s: float = 5.0
+    payload_size_bytes: int = 8
+    struct_format: str = "<4H"  # Little-endian, 4x uint16
+
+
 @dataclass(frozen=True)
 class HardwareConfig:
     num_sensors: int = 4
