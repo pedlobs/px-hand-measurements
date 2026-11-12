@@ -1,0 +1,8 @@
+bleak==3.1.0
+dbus-fast==5.2.0
+et_xmlfile==2.0.0
+numpy==2.5.4
+openpyxl==3.1.5
+pandas==3.1.1
+python-dateutil==4.0.0
+tzdata==2026.6
