@@ -19,3 +19,15 @@ class HandTelemetry:
     )
     timestamp: float = field(default_factory=time.time)
     raw_line: str = ""
+
+
+@dataclass(frozen=True)
+class TrialMetadata:
+    """Shown once in the beggining of the trial. 
+       May need to be updated."""
+    name: str
+    dob: str
+    age: str
+    description: str
+    movement: str
+    finger: str
